@@ -8,6 +8,7 @@
 #include <string>
 #include <vector>
 #include <queue>
+#include <stack>
 #include <map>
 #include <fstream>
 #include <exception>
@@ -23,6 +24,7 @@
 // 容器
 using std::vector;
 using std::queue;
+using std::stack;
 using std::string;		// 话说这个算容器吗……？
 using std::map;
 using std::pair;

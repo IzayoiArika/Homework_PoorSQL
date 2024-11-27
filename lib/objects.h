@@ -1,9 +1,9 @@
 /**
  * 头文件：objects.h
- * 此头文件的内容是MiniDB的数据结构。
+ * MiniDB的数据结构，以及必要的操作函数。
  */
-#ifndef __TERM_MINIDB_H__
-#define __TERM_MINIDB_H__
+#ifndef __OBJECTS_MINIDB_H__
+#define __OBJECTS_MINIDB_H__
 
 #include "stringop.h"
 
@@ -106,7 +106,7 @@ bool doesDatabaseExist(const string);
 void useDatabase(const string);
 void createDatabase(const string);
 
-string judgeValueType(const string);
+string parseValueType(const string);
 
 
 // 函数体定义全部写在下方
@@ -186,7 +186,7 @@ vector<Row>& Table::getRaw() {
 	return rows;
 }
 void Table::removeRow(const int n) {
-	if (n < 0 or n > rows.size()) throw InvalidArgument(i18n::parseKey("outofbound", {itos(n)}));
+	if (n < 0 or (size_t)n > rows.size()) throw InvalidArgument(i18n::parseKey("outofbound", {itos(n)}));
 	rows.erase(rows.begin()+n);
 }
 Row Table::getTitle() const {
@@ -301,7 +301,7 @@ bool Term::operator!= (const Term term) const {
 	if (!isCompatibleWith(term)) {
 		throw InvalidArgument(i18n::parseKey("incmpttypes", {type, term.type}));
 	}
-	if (type != keywords::text) {
+	if (type == keywords::text) {
 		return value != term.value;
 	}
 	else {
@@ -314,7 +314,7 @@ Term Term::operator+ (const Term term) const {
 		throw InvalidArgument(i18n::parseKey("incmpttypes", {type, term.type}));
 	}
 	if (type == keywords::text) {
-		return Term(value+term.value, keywords::text);
+		return Term(value.substr(0,value.size()-1)+term.value.substr(1), keywords::text);
 	}
 	else {
 		if (type == keywords::integer and term.type == keywords::integer) {
@@ -390,7 +390,7 @@ bool Term::isCompatibleWith (const Term term) const {
 	return true;
 }
 bool Term::doesFitType() const {
-	string real_type = judgeValueType(value);
+	string real_type = parseValueType(value);
 	if (type == keywords::integer or type == keywords::_float) {
 		return real_type == keywords::_float or real_type == keywords::integer;
 	}
@@ -425,23 +425,15 @@ void Term::print(ostream& os) const {
 }
 
 // 注意：该函数的invalid_argument是std::~而不是minidb::InvalidArgument。这是利用“stoi/stod在解析失败时抛出该异常”进行类型判断。
-string judgeValueType(const string value) {
+string parseValueType(const string value) {
 	try {
-		int i = stoi(value);
-		double d = stod(value);
-		double difference = d - i;
-		if (difference > -g_DoubleEqCritDelta and difference < g_DoubleEqCritDelta) return keywords::integer.str();
-		else return keywords::_float.str();
+		stod(value);
+		if (value.find('.') != string::npos) return keywords::_float.str();
+		else return keywords::integer.str();
 	}
 	catch (invalid_argument& e) {		
-		try {
-			stod(value);
-			return keywords::_float.str();
-		}
-		catch (invalid_argument& e) {
-			if (value.size() != 0 and value.at(0) == '\'') return keywords::text.str();
-			else return keywords::variable.str();
-		}
+		if (value.size() != 0 and value.at(0) == '\'') return keywords::text.str();
+		else return keywords::variable.str();
 	}
 }
 

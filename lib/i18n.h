@@ -46,7 +46,7 @@ class i18nstring {
 		i18nstring(const string s = "", const vstring v = {}):pattern(s),params(v){}
 		void setPattern(const string s) { pattern = s;}
 		void setParams(const vstring v) { params = v; }
-		string prints() const;
+		string str() const;
 };
 
 // 所有可能的国际化字符串
@@ -59,7 +59,7 @@ class MiniDBExceptionBase {
 		MiniDBExceptionBase(const char* s) { msg = s; };
 		MiniDBExceptionBase(const string s = "") { msg = s; };
 		MiniDBExceptionBase(const i18nstring s) { msg = s; };
-		virtual const string what() const { return msg.prints(); }
+		virtual const string what() const { return msg.str(); }
 		virtual return_status status() const { return return_status::exbase; }
 };
 
@@ -78,7 +78,7 @@ namespace i18n{
 
 
 // 解析国际化字符串的参数并返回解析后字符串
-string i18nstring::prints() const {
+string i18nstring::str() const {
 	string p = pattern;
 	string res = "";
 	int index = 0;
@@ -112,7 +112,7 @@ string i18nstring::prints() const {
 
 // 重载ostream的左移运算符以更方便地输出国际化字符串
 ostream& operator<< (ostream& os, const i18nstring s) {
-	return os << s.prints();
+	return os << s.str();
 }
 
 bool isDigit(char ch) {
@@ -188,6 +188,7 @@ namespace i18n {
 				{"invalidmathop", "Invalid math operator \"%1\"."},
 				{"invalidcmpop", "Invalid comparison operator \"%1\"."},
 				{"invalidlgop", "Invalid logical operator \"%1\"."},
+				{"invalidlval", "Invalid lvalue expression: %1"},
 				{"nosuchdb", "No such database named \"%1\"."},
 				{"nosuchtab", "No such table named \"%1\"."},
 				{"nosuchterm", "No such term named \"%1\"."},
@@ -200,7 +201,7 @@ namespace i18n {
 				{"vnfitt", "Value (%1) does not match the given type \"%2\"."},
 				{"upp", "Unmatched parameter pattern."},
 				{"redundant", "Redundant ',' after given parameters."},
-				{"uncloparen", "Unclosed parenthesis."},
+				{"mismparen", "Mismatched parenthesis."},
 				{"strunexptsufx", "Unexpected suffix \"%1\" found after string constant \"%2\"."},
 				{"strunexptprfx", "Unexpected prefix \"%1\" found before string constant \"%2\"."},
 				{"strunexptsquote", "Unexpected single quote mark found in string \"%2\" at Pos.%1."},
@@ -251,6 +252,7 @@ namespace i18n {
 				{"p_tablename", "table name"},
 				{"p_termname", "term name"},
 				{"p_termvalue", "term value"},
+				{"p_asgn", "assignment"},
 				{"dupselwildc", "Duplicate selection. (Applying wildcard '*' and other selectors simultaneously.)"},
 				{"dupselterm", "Duplicate selection. (Found duplicate term \"%1\".)"},
 				{"def_w_langf", "MiniDB> [Warning] Failed to open language file \"%1.ini\", now using default language file."},

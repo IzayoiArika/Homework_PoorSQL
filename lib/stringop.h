@@ -13,12 +13,12 @@ template <typename T> bool doesContain(const T, const vector<T>);		// 在给定v
 bool doesContain(const char, const string);							// 在给定string中查找char，找到返回true，否则返回false。
 bool isReservedKeyword(const string);					// 判断给定字符串是否为关键字。
 bool doesFitNameRequirement(const string);				// 判断给定字符串是否符合变量名命名原则（不考虑与关键字冲突的情况）。
-bool isAcceptableName(const string); 					// 判断给定字符串是否符合变量名命名原则。
+bool isValidVarName(const string); 					// 判断给定字符串是否符合变量名命名原则。
 bool isToken(const string);								// 判断给定字符串是否应该被计入token。
 bool isValidCmpOp(const string);						// 判断给定字符串是否为合法的比较运算符。
 
-vstring splitParameters(const string, const string);	// 传入一系列分割符，将给定字符串按分割符切成数段（丢弃分隔符）返回。
-vstring splitParameters(const string, const char);
+vstring splitByDelimiters(const string, const string);	// 传入一系列分割符，将给定字符串按分割符切成数段（丢弃分隔符）返回。
+vstring splitByDelimiters(const string, const char);
 
 string trim(const string);								// 去除字符串头尾空白
 string trimDuplicateWs(const string);					// 去除字符串中间重复空白
@@ -157,14 +157,14 @@ void checkStrValidity(const vstring strs) {
 		}
 		auto mpos = str.find('\'', 1);
 		if (mpos != rpos) {
-			// 在开头之后找到其他单引号，可能是结尾的也可能是其他的。如果不是结尾，那就只能是其他的。
-			// 由于任务要求不包括对转义符的处理，这里不会把双单引号转义（''）处理为文本内单引号（'）。
-			// 也因此认为：除开头结尾以外，字符串在其余任何位置出现单引号，都被认为是非法输入。
+			// 在开头之后找到除结尾以外的其他单引号。
+			// 由于任务要求不包括对转义符的处理，这里不会把SQL的双单引号转义（''）处理为文本内单引号（'）。
+			// 由此进一步认为：除开头结尾以外，字符串在其余任何位置出现单引号，都被认为是非法输入。
 			throw InvalidArgument(i18n::parseKey("strunexptsquote", {itos(mpos-1), str}));
 		}
 	}
 }
-vstring splitParameters(const string res, const string delim) {
+vstring splitByDelimiters(const string res, const string delim) {
 	vstring tokens;
 	string token;
 	bool f_isInStr = false;
@@ -179,7 +179,7 @@ vstring splitParameters(const string res, const string delim) {
 					token.push_back(ch);		// 在字符串里的字符原样保留
 					break;
 				}
-											// 不在字符串里的字符
+												// 不在字符串里的字符
 				if (doesContain(ch, delim)) {	// 读取到分割符时结束当前字符串并推入tokens
 					if (token != "") tokens.push_back(token);			// 正是因为要读到分割符才推入，所以遍历开始前在字符串末尾追加了一个分割符
 					token = "";
@@ -192,8 +192,8 @@ vstring splitParameters(const string res, const string delim) {
 	checkStrValidity(tokens);
 	return tokens;
 }
-vstring splitParameters(const string res, const char delim) {
-	return splitParameters(res, string(1, delim));
+vstring splitByDelimiters(const string res, const char delim) {
+	return splitByDelimiters(res, string(1, delim));
 }
 bool isReservedKeyword(const string str) {
 	if (str == "") return false;
@@ -210,7 +210,7 @@ bool doesFitNameRequirement(const string str) {
 	}
 	return true;
 }
-bool isAcceptableName(const string r) {
+bool isValidVarName(const string r) {
 	return (!isReservedKeyword(r) and doesFitNameRequirement(r));
 }
 istream& getsUntil(istream& is, string& str, const string delim) {

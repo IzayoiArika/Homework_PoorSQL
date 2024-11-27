@@ -2,10 +2,10 @@
  * 头文件：commands.h
  * 主要的流程和处理大多位于此处。此外，存储历史数据库记录的函数也位于此。
  */
-#ifndef __MAIN_MINIDB_H__
-#define __MAIN_MINIDB_H__
+#ifndef __COMMANDS_MINIDB_H__
+#define __COMMANDS_MINIDB_H__
 
-#include "paramanalysis.h"
+#include "paramsanlys.h"
 #include "operations.h"
 
 #ifdef __DEBUG_ENVIRONMENT__
@@ -46,7 +46,7 @@ void parseCommand(ifstream& ifile, ofstream& ofile) {
 	g_LnCounter.newl();
 	while (getsUntil(ifile, line, symbols::cmdend)) {
 		vstring params;
-		params = splitParameters(line, ' ');
+		params = splitByDelimiters(line, ' ');
 		
 		#ifdef __DEBUG_ENVIRONMENT__
 			if (!gf_SilentLoggers) {

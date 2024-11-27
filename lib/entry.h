@@ -1,3 +1,7 @@
+/**
+ * 头文件：entry.h
+ * 程序入口，以及垃圾处理。
+ */
 #ifndef __ENTRY_MINIDB_H__
 #define __ENTRY_MINIDB_H__
 
@@ -33,7 +37,7 @@ return_status __Entry(int argc, char**& argv) {
 
 		if (argc != 3) f_UnacceptableCmdl = true;
 
-		clog << endl << i18n::parseKey("welcome", {i18n::parseKey("authn").prints()}) << endl;
+		clog << endl << i18n::parseKey("welcome", {i18n::parseKey("authn").str()}) << endl;
 
 		if (f_UnacceptableCmdl) throw ArgumentCountError(2,argc-1,i18n::parseKey("unacptcmdl"));
 
@@ -98,9 +102,9 @@ void deleteTempFiles() {
 		auto delete_status = remove(str.c_str());
 		#ifdef __DEBUG_ENVIRONMENT__
 			if (delete_status != 0) {
-				clog << i18n::parseKey("gcrmtmpf",{str}) << endl;
+				clog << endl << i18n::parseKey("gcrmtmpf",{str}) << endl;
 			}
-			else clog << i18n::parseKey("gcrmtmps",{str}) << endl;
+			else clog << endl << i18n::parseKey("gcrmtmps",{str}) << endl;
 		#endif
 	}
 }

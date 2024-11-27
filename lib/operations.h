@@ -1,11 +1,11 @@
 /**
  * 头文件：operations.h
- * 此头文件的内容是MiniDB实际执行命令的函数。
+ * MiniDB实际执行命令的函数。
  */
 #ifndef __OPERATIONS_MINIDB_H__
 #define __OPERATIONS_MINIDB_H__
 
-#include "objects.h"
+#include "calculator.h"
 
 namespace minidb {
 
@@ -38,7 +38,7 @@ bool fitsWhereRequirement(const Row r, const vstring conditions) {
 			case 0:		// 左值
 				do {
 					Term term;
-					string type = judgeValueType(str);
+					string type = parseValueType(str);
 					if (type != keywords::variable) {
 						term.setType(type).setValue(str);
 					}
@@ -54,7 +54,7 @@ bool fitsWhereRequirement(const Row r, const vstring conditions) {
 			case 2:		// 右值
 				do {
 					Term term;
-					string type = judgeValueType(str);
+					string type = parseValueType(str);
 					if (type != keywords::variable) {
 						term.setType(type).setValue(str);
 					}
@@ -76,7 +76,7 @@ bool fitsWhereRequirement(const Row r, const vstring conditions) {
 	// 不支持括号，不支持短路
 	bool result = expressions.at(0).result();
 	expressions.erase(expressions.begin());
-	for (int i = 0; i < ops.size(); ++i) {
+	for (size_t i = 0; i < ops.size(); ++i) {
 		string op = ops.at(i);
 		cmpex expr = expressions.at(i);
 		if (op == keywords::_and) {
@@ -141,13 +141,12 @@ void runStUpdate(const vstring params) {
 	}
 
 	// 以下是更新数据的部分
-	// for (Row& row : table.getRaw()) {
-	// 	for (size_t i = 0; i < variable_names.size(); ++i) {
-	// 		string str = variable_names.at(i);
-	// 		Term& term = row.findTerm(str);
-	// 		term.setValue(values.at(i));
-	// 	}
-	// }
+	for (Row& row : table.getRaw()) {
+		if (!fitsWhereRequirement(row, conditions)) continue;
+		for (string asgn : assignments) {
+			applyAsgnExpr(row, asgn);
+		}
+	}
 }
 void runStInnerJoin(const vstring params, ostream& os) {
 	Database& database = getCurrentDatabase();
@@ -228,10 +227,10 @@ void runStInnerJoin(const vstring params, ostream& os) {
 			string expt = "\"" + tabn_first + "\" or \"" + tabn_second + "\"";
 			throw InvalidArgument(i18n::parseKey("exptsthgotothers", {expt, table_name}));
 		}
-		if (!isAcceptableName(table_name)) {
+		if (!isValidVarName(table_name)) {
 			throw InvalidArgument(i18n::parseKey("unacptvarn", {table_name}));
 		}
-		if (!isAcceptableName(column_name) and column_name != symbols::fwildcard) {
+		if (!isValidVarName(column_name) and column_name != symbols::fwildcard) {
 			throw InvalidArgument(i18n::parseKey("unacptvarn", {column_name}));
 		}
 
@@ -351,8 +350,8 @@ void runStSelection(const vstring params, ostream& os) {
 	Table result(title);
 
 	for (Row row : table.getRaw()) {
-		Row row_temp;
 		if (!fitsWhereRequirement(row, conditions)) continue;
+		Row row_temp;
 		for (psterm p_term : row.getRaw()) {
 			string table_name = p_term.first;
 			Term term = p_term.second;

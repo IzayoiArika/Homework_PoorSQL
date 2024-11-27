@@ -2,8 +2,8 @@
  * 头文件：exceptions.h
  * 本头文件定义了数个新异常类，在处理语法过程中可能被抛出。
  */
-#ifndef __CLASSES_MINIDB_H__
-#define __CLASSES_MINIDB_H__
+#ifndef __EXCEPTIONS_MINIDB_H__
+#define __EXCEPTIONS_MINIDB_H__
 
 #include "i18n.h"
 
@@ -21,7 +21,7 @@ class ArgumentCountError extends public MiniDBExceptionBase {
 		ArgumentCountError(const int e, const int r, const i18nstring s = ""):expt(e),recv(r) { msg = s; };
 		virtual const string what() const override {
 			stringstream ss;
-			ss << i18n::parseKey("argscerr",{msg.prints(),(expt<recv?i18n::parseKey("much").prints():i18n::parseKey("less").prints()),itos(expt)});
+			ss << i18n::parseKey("argscerr",{msg.str(),(expt<recv?i18n::parseKey("much").str():i18n::parseKey("less").str()),itos(expt)});
 			if (recv != g_ArgCntMax) ss << i18n::parseKey("argscerr_r",{itos(recv)});
 			ss << i18n::parseKey("argscerr_e");
 			return ss.str().c_str();
@@ -31,20 +31,20 @@ class ArgumentCountError extends public MiniDBExceptionBase {
 class InvalidArgument extends public MiniDBExceptionBase {
 	public:
 		InvalidArgument(const i18nstring s = "") { msg = s; };
-		virtual const string what() const override { return i18n::parseKey("invalidarg",{msg.prints()}).prints().c_str(); }
+		virtual const string what() const override { return i18n::parseKey("invalidarg",{msg.str()}).str().c_str(); }
 		virtual return_status status() const override { return return_status::invarg; }
 };
 class SyntaxError extends public MiniDBExceptionBase {
 	public:
 		SyntaxError(const i18nstring s = "") { msg = s; };
-		virtual const string what() const override { return i18n::parseKey("syntaxerr",{msg.prints()}).prints().c_str(); } 
+		virtual const string what() const override { return i18n::parseKey("syntaxerr",{msg.str()}).str().c_str(); } 
 		virtual return_status status() const override { return return_status::syntaxerr; }
 
 };
 class FailedFileOperation extends public MiniDBExceptionBase {
 	public:
 		FailedFileOperation(const i18nstring s = "") { msg = s; };
-		virtual const string what() const override { return i18n::parseKey("ferr",{msg.prints()}).prints().c_str(); }
+		virtual const string what() const override { return i18n::parseKey("ferr",{msg.str()}).str().c_str(); }
 		virtual return_status status() const override { return return_status::ferr; }
 };
 

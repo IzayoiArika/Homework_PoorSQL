@@ -1,5 +1,6 @@
 /**
  * 头文件：loggers.h
+ * 向控制台输出日志。
  * 仅在定义了宏__DEBUG_ENVIRONMENT__时被调用。
  */
 

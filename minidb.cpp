@@ -42,19 +42,21 @@ int main(int argc, char** argv) {
 /**				文件结构 File Structure
  * ---------------------------------------------------- *
  * 	minidb.cpp						-> lib/entry.h		*
+ * ---------------------------------------------------- *
  * 	lib/												*
  * 		entry.h											*
  * 		->	commands.h									*
  * 			->	loggers.h			-> exceptions.h		*
- * 			->	operations.h		-> objects.h		*
- * 			->	paramanalysis.h		-> stringop.h		*
+ * 			->	operations.h		-> calculator.h		*
+ * 			->	paramsanlys.h		-> stringop.h		*
  * ---------------------------------------------------- *
- * 			->	objects.h								*
- * 				->	stringop.h							*
- * 					->	auxiliaries.h					*
- * 						->	exceptions.h				*
- * 							->	i18n.h					*
- * 								->	environments.h		*
+ * 			->	calculator.h							*
+ * 				->	objects.h							*
+ * 					->	stringop.h						*
+ * 						->	auxiliaries.h				*
+ * 							->	exceptions.h			*
+ * 								->	i18n.h				*
+ * 									->	environments.h	*
  * ---------------------------------------------------- *
  */
 
