@@ -9,15 +9,12 @@
 
 namespace minidb {
 
-enum class logic_op_type {
-	lgand, lgor, lgxor, lgnull
-};
 class Term {
 	private:
 		string value;
 		string type;
 	public:
-		Term(const string v = "", const string term = keywords::text):value(v),type(term){};
+		Term(const string v = "", const kwstring term = keywords::text):value(v),type(term.str()){};
 		bool operator< (const Term) const;
 		bool operator== (const Term) const;
 		bool operator> (const Term) const;
@@ -34,31 +31,7 @@ class Term {
 		string getType() const;
 		Term& setValue(const string);
 		Term& setType(const string);
-		void print(ostream&, bool = false) const;
-};
-class BinaryExpression {
-	public:
-		Term first;
-		Term second;
-		string op;
-		BinaryExpression(const Term f = Term(), const Term str = Term(), const string op = symbols::equals):first(f),second(str),op(op){};
-		virtual void verifyValidity() = 0;
-};
-class ComparisonExpression extends public BinaryExpression {
-	private:
-		void verifyValidity();
-	public:
-		ComparisonExpression(const Term f = Term(), const Term str = Term(), const string op = symbols::equals):BinaryExpression(f,str,op){};
-		bool result();
-};
-typedef vector<ComparisonExpression> vcompex;
-typedef vector<logic_op_type> vlogicop_t;
-class ComparisonList {
-	private:
-		vcompex cmpexs;
-		vlogicop_t type;
-	public:
-		ComparisonList(vstring);
+		void print(ostream&) const;
 };
 typedef map<string, Term> msterm;
 typedef pair<string, Term> psterm;
@@ -89,6 +62,7 @@ class Table {
 		void print(ostream&) const;
 		vector<Row>& getRaw();
 		Row getTitle() const;
+		void removeRow(const int);
 };
 typedef map<string, Table> mstable;
 typedef pair<string, Table> pstable;
@@ -103,7 +77,26 @@ class Database {
 		Table& findTable(const string);
 		mstable getRaw() const;
 };
-typedef pair<string, Database> psdb;
+
+class BinaryExpression {
+	protected:
+		Term first;
+		Term second;
+		string op;
+	public:
+		BinaryExpression(const Term f = Term(), const Term str = Term(), const string op = symbols::equals):first(f),second(str),op(op){};
+		virtual void verifyValidity() const = 0;
+		void setFirst(const Term t){ first = t; }
+		void setSecond(const Term t){ second = t; }
+		void setOp(const string str){ op = str; }
+};
+class ComparisonExpression extends public BinaryExpression {
+	private:
+		void verifyValidity() const;
+	public:
+		ComparisonExpression(const Term f = Term(), const Term str = Term(), const string op = symbols::equals):BinaryExpression(f,str,op){};
+		bool result() const;
+};
 
 map<string, Database> g_Databases;
 string g_CurrentDatabaseName = "";
@@ -118,44 +111,11 @@ string judgeValueType(const string);
 
 // 函数体定义全部写在下方
 
-ComparisonList::ComparisonList(vstring params) {
-	int i = 0;
-	string str_first, str_second, op;
-	for (auto it = params.begin(); it != params.end(); ++it, ++i) {
-		switch (i % 4) {
-			case 0:
-				str_first = *it;
-				break;
-			case 1:
-				op = *it;
-				break;
-			case 2:
-				str_second = *it;
-				do {
-					ComparisonExpression ex (
-						Term(str_first, judgeValueType(str_first)),
-						Term(str_second, judgeValueType(str_second)),
-						op
-					);
-					cmpexs.push_back(ex);
-					type.push_back(logic_op_type::lgnull);
-				} while (false);
-				break;
-			case 3:
-				if (*it == keywords::_and)		type.at(i / 4) = logic_op_type::lgand;
-				else if (*it == keywords::_or)	type.at(i / 4) = logic_op_type::lgor;
-				else if (*it == keywords::_xor)	type.at(i / 4) = logic_op_type::lgxor;
-				else 							type.at(i / 4) = logic_op_type::lgnull;
-		}
-	}
-}
-
-void ComparisonExpression::verifyValidity() {
+void ComparisonExpression::verifyValidity() const {
 	if (isValidCmpOp(op)) return;
 	throw InvalidArgument(i18n::parseKey("invalidcmpop", {op}));
 }
-
-bool ComparisonExpression::result() {
+bool ComparisonExpression::result() const {
 	verifyValidity();
 	bool res;
 	if (op == symbols::less)			res = (first < second);
@@ -185,8 +145,9 @@ void useDatabase(const string str) {
 }
 void createDatabase(const string str) {
 	if (doesDatabaseExists(str)) throw InvalidArgument(i18n::parseKey("duplicatedb", {str}));
-	g_Databases.insert(psdb(str, Database()));
+	g_Databases.insert(pair<string, Database>(str, Database()));
 }
+
 bool Database::doesExist(const string str) const {
 	for (pstable p_table : tables) {
 		if (p_table.first == str) return true;
@@ -223,6 +184,10 @@ void Table::print(ostream& os) const {
 }
 vector<Row>& Table::getRaw() {
 	return rows;
+}
+void Table::removeRow(const int n) {
+	if (n < 0 or n > rows.size()) throw InvalidArgument(i18n::parseKey("outofbound", {itos(n)}));
+	rows.erase(rows.begin()+n);
 }
 Row Table::getTitle() const {
 	return title;
@@ -293,6 +258,7 @@ Row& Row::mergeRowIntersect(const Row row) {
 	}
 	return *this;
 }
+
 bool Term::operator< (const Term term) const {
 	if (!isCompatibleWith(term)) {
 		throw InvalidArgument(i18n::parseKey("incmpttypes", {type, term.type}));
@@ -301,7 +267,9 @@ bool Term::operator< (const Term term) const {
 		return value < term.value;
 	}
 	else {
-		return stringToDouble(value) < stringToDouble(term.value);
+		double v1 = stringToDouble(value);
+		double v2 = stringToDouble(term.value);
+		return v1 < v2;
 	}
 }
 bool Term::operator== (const Term term) const {
@@ -312,7 +280,8 @@ bool Term::operator== (const Term term) const {
 		return value == term.value;
 	}
 	else {
-		return stringToDouble(value) == stringToDouble(term.value);
+		double difference = stringToDouble(value) - stringToDouble(term.value);
+		return (difference <= -g_DoubleEqCritDelta or difference >= g_DoubleEqCritDelta);
 	}
 }
 bool Term::operator> (const Term term) const {
@@ -323,7 +292,9 @@ bool Term::operator> (const Term term) const {
 		return value > term.value;
 	}
 	else {
-		return stringToDouble(value) > stringToDouble(term.value);
+		double v1 = stringToDouble(value);
+		double v2 = stringToDouble(term.value);
+		return v1 > v2;
 	}
 }
 bool Term::operator!= (const Term term) const {
@@ -439,43 +410,40 @@ Term& Term::setValue(const string v) {
 	return *this;
 }
 Term& Term::setType(const string term) {
-	if (equalIgnoringCase(term, keywords::integer)) type = keywords::integer;
-	else if (equalIgnoringCase(term, keywords::_float)) type = keywords::_float;
-	else if (equalIgnoringCase(term, keywords::text)) type = keywords::text;
-	else if (equalIgnoringCase(term, keywords::variable)) type = keywords::variable;
+	if (term == keywords::integer) type = keywords::integer.str();
+	else if (term == keywords::_float) type = keywords::_float.str();
+	else if (term == keywords::text) type = keywords::text.str();
+	else if (term == keywords::variable) type = keywords::variable.str();
 	else throw InvalidArgument(i18n::parseKey("unacptvt", {term}));
 	return *this;
 }
-void Term::print(ostream& os, bool f_isSql) const {
+void Term::print(ostream& os) const {
 	if (type == keywords::integer)	os << stringToInt(value);
 	else if (type == keywords::_float)	os << std::fixed << std::setprecision(2) << stringToDouble(value);
-	else if (type == keywords::text) {
-		if (f_isSql) os << '\'' << value.substr(1,value.size()-2) << '\'';
-		else os << '\"' << value.substr(1,value.size()-2) << '\"';
-	}
+	else if (type == keywords::text) os << '\'' << value.substr(1,value.size()-2) << '\'';
 	else os << value;
 }
 
+// 注意：该函数的invalid_argument是std::~而不是minidb::InvalidArgument。这是利用“stoi/stod在解析失败时抛出该异常”进行类型判断。
 string judgeValueType(const string value) {
 	try {
 		int i = stoi(value);
 		double d = stod(value);
 		double difference = d - i;
-		if (difference > -1e-6 and difference < 1e-6) return keywords::integer;
-		else return keywords::_float;
+		if (difference > -g_DoubleEqCritDelta and difference < g_DoubleEqCritDelta) return keywords::integer.str();
+		else return keywords::_float.str();
 	}
-	catch (invalid_argument& e) {		// 注意：这里的invalid_argument是std::~而不是minidb::InvalidArgument
+	catch (invalid_argument& e) {		
 		try {
 			stod(value);
-			return keywords::_float;
+			return keywords::_float.str();
 		}
 		catch (invalid_argument& e) {
-			if (value.size() != 0 and value.at(0) == '\'') return keywords::text;
-			else return keywords::variable;
+			if (value.size() != 0 and value.at(0) == '\'') return keywords::text.str();
+			else return keywords::variable.str();
 		}
 	}
 }
-
 
 
 

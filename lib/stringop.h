@@ -11,7 +11,6 @@ namespace minidb {
 
 template <typename T> bool doesContain(const T, const vector<T>);		// 在给定vector中查找key，找到返回true，否则返回false。
 bool doesContain(const char, const string);							// 在给定string中查找char，找到返回true，否则返回false。
-bool equalIgnoringCase(const string, const string);			// 判断两字符串在忽略大小写差异的情况下是否相等。
 bool isReservedKeyword(const string);					// 判断给定字符串是否为关键字。
 bool doesFitNameRequirement(const string);				// 判断给定字符串是否符合变量名命名原则（不考虑与关键字冲突的情况）。
 bool isAcceptableName(const string); 					// 判断给定字符串是否符合变量名命名原则。
@@ -25,59 +24,60 @@ string trim(const string);								// 去除字符串头尾空白
 string trimDuplicateWs(const string);					// 去除字符串中间重复空白
 void checkStrValidity(const vstring);					// 检查字符串是否有效
 
-string lowercase(const string);							// 返回字符串的小写版本。
-
 istream& getsUntil(istream&, string&, const string);	// 读取一整行字符串，直到遇到给定的字符串或读取出错为止。
 
 const vector<char> g_Whitespaces = {' ', '\t', '\n'};		// 空白字符列表
-namespace keywords {										// 字符串列表
-	const string create = "create";
-	const string drop = "drop";
-	const string database = "database";
-	const string use = "use";
-	const string table = "table";
-	const string insert = "insert";
-	const string into = "into";
-	const string inner = "inner";
-	const string join = "join";
-	const string values = "values";
-	const string select = "select";
-	const string from = "from";
-	const string where = "where";
-	const string _and = "and";
-	const string _or = "or";
-	const string _xor = "xor";
-	const string on = "on";
-	const string update = "update";
-	const string set = "set";
-	const string _delete = "delete";
-	const string integer = "integer";
-	const string _float = "float";
-	const string text = "text";
 
-	const string variable = "variable";
+namespace keywords {										// 字符串列表
+	const kwstring create = "create";
+	const kwstring drop = "drop";
+	const kwstring database = "database";
+	const kwstring use = "use";
+	const kwstring table = "table";
+	const kwstring insert = "insert";
+	const kwstring into = "into";
+	const kwstring inner = "inner";
+	const kwstring join = "join";
+	const kwstring values = "values";
+	const kwstring select = "select";
+	const kwstring from = "from";
+	const kwstring where = "where";
+	const kwstring _and = "and";
+	const kwstring _or = "or";
+	const kwstring _xor = "xor";
+	const kwstring on = "on";
+	const kwstring update = "update";
+	const kwstring set = "set";
+	const kwstring _delete = "delete";
+	const kwstring integer = "integer";
+	const kwstring _float = "float";
+	const kwstring text = "text";
+
+	const kwstring variable = "variable";
 }
-const vstring g_Keywords = {							// 关键字列表（纯小写）
-	keywords::create,		keywords::drop,		keywords::database,	keywords::use,
-	keywords::table,		keywords::insert,		keywords::into,		keywords::inner,
-	keywords::join,		keywords::values,		keywords::select,		keywords::from,
-	keywords::where,		keywords::_and,		keywords::_or,			keywords::on,
-	keywords::update,		keywords::set,			keywords::_delete,		keywords::integer,
-	keywords::_float,		keywords::text
+const vector<kwstring> g_Keywords = {							// 关键字列表（纯小写）
+	keywords::create,	keywords::drop,		keywords::database,		keywords::use,
+	keywords::table,	keywords::insert,	keywords::into,			keywords::inner,
+	keywords::join,		keywords::values,	keywords::select,		keywords::from,
+	keywords::where,	keywords::_and,		keywords::_or,			keywords::_xor,
+	keywords::on,		keywords::update,	keywords::set,			keywords::_delete,
+	keywords::integer,	keywords::_float,	keywords::text
 };
-enum class keyword_name {						// 关键字枚举类型，注意必须与RSV_KEYWORDS顺序完全一致
+enum class keyword_index {						// 关键字枚举类型，注意必须与g_Keywords顺序完全一致（最后两个除外）
 	create,		drop,		database,	use,
 	table,		insert,		into,		inner,
 	join,		values,		select,		from,
-	where,		_and,		_or,			on,
-	update,		set,		_delete,		integer,
-	_float,		text,
+	where,		_and,		_or,		_xor,
+	on,			update,		set,		_delete,
+	integer,	_float,		text,
 	unexpected = -1,
 	newline = -2
 };
 
-ostream& operator<< (ostream&, const keyword_name);		// 重载ostream左移运算符实现自定义类型输出
-keyword_name getKeywordIndex(const string);				// 将string类型的关键字转化为keyword_name类型
+ostream& operator<< (ostream&, const keyword_index);		// 重载ostream左移运算符实现自定义类型输出
+bool operator== (const string, const kwstring);
+bool operator!= (const string, const kwstring);
+keyword_index getKeywordIndex(const string);				// 将string类型的关键字转化为keyword_name类型
 
 
 
@@ -195,23 +195,9 @@ vstring splitParameters(const string res, const string delim) {
 vstring splitParameters(const string res, const char delim) {
 	return splitParameters(res, string(1, delim));
 }
-string lowercase(const string str) {
-	string res = "";
-	const string latin_lowercase = "abcdefghijklmnopqrstuvwxyz";
-	const string latin_uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	for (char ch : str) {
-		auto pos = latin_uppercase.find(ch);
-		if (pos == string::npos) res.push_back(ch);
-		else res.push_back(latin_lowercase.at(pos));
-	}
-	return res;
-}
-bool equalIgnoringCase(const string a, const string b) {
-	return lowercase(a) == lowercase(b);
-}
 bool isReservedKeyword(const string str) {
 	if (str == "") return false;
-	for (string keyword_str : g_Keywords) if (equalIgnoringCase(keyword_str, str)) return true;
+	for (kwstring keyword_str : g_Keywords) if (keyword_str == str) return true;
 	return false;
 }
 bool doesFitNameRequirement(const string str) {
@@ -243,24 +229,36 @@ istream& getsUntil(istream& is, string& str, const string delim) {
 	str = trimDuplicateWs(res);
 	return is;
 }
-ostream& operator<< (ostream& os, const keyword_name kw) {
-	return os << g_Keywords.at(static_cast<int>(kw));
+ostream& operator<< (ostream& os, const keyword_index kw) {
+	return os << g_Keywords.at(static_cast<int>(kw)).str();
 }
-keyword_name getKeywordIndex(const string str) {
-	if (str == symbols::newl) return keyword_name::newline;
+bool operator== (const string s, const kwstring kws) {
+	return (kws == s);
+}
+bool operator!= (const string s, const kwstring kws) {
+	return !(s == kws);
+}
+keyword_index getKeywordIndex(const string str) {
+	if (str == symbols::newl) return keyword_index::newline;
 	int i = 0;
-	string lower = lowercase(str);
-	for (string kws : g_Keywords) {
-		if (kws == lower) return static_cast<keyword_name>(i);
+	for (kwstring kws : g_Keywords) {
+		if (kws == str) return static_cast<keyword_index>(i);
 		++i;
 	}
-	return keyword_name::unexpected;
+	return keyword_index::unexpected;
 }
+
 bool isValidCmpOp(const string s) {
 	return (	s == symbols::less
 			or	s == symbols::equals
 			or	s == symbols::greater
 			or	s == symbols::neq
+			);
+}
+bool isValidLogicOp(const string s) {
+	return (	s == keywords::_and
+			or	s == keywords::_or
+			or	s == keywords::_xor
 			);
 }
 

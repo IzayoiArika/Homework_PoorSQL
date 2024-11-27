@@ -7,6 +7,7 @@
 
 #include <string>
 #include <vector>
+#include <queue>
 #include <map>
 #include <fstream>
 #include <exception>
@@ -21,6 +22,7 @@
 // 程序需要的所有std内容
 // 容器
 using std::vector;
+using std::queue;
 using std::string;		// 话说这个算容器吗……？
 using std::map;
 using std::pair;
@@ -80,6 +82,16 @@ const double g_DoubleEqCritDelta = 1e-6;
 #define __DEBUG_ENVIRONMENT__
 // #define __ENABLE_I18N__
 // #define __STORE_LEGACY__
+
+
+
+
+
+
+
+
+
+
 
 // 以下是整活，实际上没有任何用处
 // This is just for fun. It actually has no use.

@@ -71,7 +71,7 @@ void parseWhereClauseParams(vstring& params) {
 				break;
 			case 2:	break;
 			case 3:
-				if (getKeywordIndex(current_str) != keyword_name::_and and getKeywordIndex(current_str) != keyword_name::_or) {
+				if (!isValidLogicOp(current_str)) {
 					throw SyntaxError(i18n::parseKey("invalidlgop", {current_str}));
 				}
 				break;
@@ -93,6 +93,9 @@ void parseDeleteFromParams(vstring& params) {
 		current_str = params.at(0);
 		if (stage == 2) {
 			parseWhereClauseParams(params);
+			for (string s : params) {
+				res.push_back(s);
+			}
 			break;
 		}
 		switch (stage) {
@@ -106,10 +109,9 @@ void parseDeleteFromParams(vstring& params) {
 				break;
 			case 1:							// 读取where
 				g_LnCounter.increment();
-				if (getKeywordIndex(current_str) != keyword_name::where) {
+				if (current_str != keywords::where) {
 					throw SyntaxError(i18n::parseKey("unexptstr", {current_str}));
 				}
-				res.push_back(keywords::where);
 				stage = 2;
 				break;
 		}
@@ -128,7 +130,7 @@ cmd_type parseDeletionStParams(vstring& params) {
 	if (params.size() == 0) throw SyntaxError(i18n::parseKey("exptkwgotnil", {keywords::from}));
 	g_LnCounter.increment();
 	switch (getKeywordIndex(params.at(0))) {
-		case keyword_name::from:
+		case keyword_index::from:
 			params.erase(params.begin());		// 用于删去开头的"from"
 			parseDeleteFromParams(params);
 			return cmd_type::delfrom;
@@ -144,15 +146,27 @@ cmd_type parseUpdateParams(vstring& params) {
 	while (params.size() != 0) {
 		eraseNewlFront(params);
 		now = params.at(0);
-		if (stage == 6) {
-			parseWhereClauseParams(params);
-			break;
-		}
-		if (equalIgnoringCase(now, keywords::set)) {
+		if (now == keywords::set) {
 			// 如果set没有出现在读取from的阶段（stage 1）则一定语法错误
 			if (stage != 1) {
-				throw SyntaxError(i18n::parseKey("unexptkw", {keywords::from}));
+				throw SyntaxError(i18n::parseKey("unexptkw", {keywords::set}));
 			}
+			res.push_back(keywords::set.str());
+			params.erase(params.begin());
+			stage = 2;
+			continue;
+		}
+		if (now == keywords::where) {
+			// 如果set没有出现在读取from的阶段（stage 2）则一定语法错误
+			if (stage != 2) {
+				throw SyntaxError(i18n::parseKey("unexptkw", {keywords::where}));
+			}
+			res.push_back(keywords::where.str());
+			params.erase(params.begin());	// 删除"where"
+			if (params.size() == 0) throw SyntaxError(i18n::parseKey("exptsthgotnil", {i18n::parseKey("p_termname").prints()}));
+			parseWhereClauseParams(params);
+			stage = 3;
+			continue;
 		}
 		switch (stage) {
 			case 0:							// 读取表名
@@ -167,31 +181,11 @@ cmd_type parseUpdateParams(vstring& params) {
 				if (now != keywords::set) {
 					throw SyntaxError(i18n::parseKey("unexptstr", {now}));
 				}
-				stage = 2;
 				break;
-			case 2:							// 读取变量名
-				g_LnCounter.increment();
-				if (!isAcceptableName(now)) {
-					throw InvalidArgument(i18n::parseKey("unacptvarn", {now}));
-				}
-				res.push_back(now);
-				stage = 3;
-				break;
-			case 3:							// 赋值符号"="
-				if (now != symbols::assigns) {
-					throw SyntaxError(i18n::parseKey("unexptstr", {now}));
-				}
-				stage = 4;
-				break;
-			case 4:							// 读取值
+			case 2:
+			case 3:
 				g_LnCounter.increment();
 				res.push_back(now);
-				stage = 5;
-				break;
-			case 5:							// ","或"where"
-				if (equalIgnoringCase(now, keywords::where)) stage = 6;
-				else if (now == symbols::next) stage = 2;
-				else throw SyntaxError(i18n::parseKey("unexptstr", {now}));
 				break;
 		}
 		params.erase(params.begin());
@@ -199,15 +193,8 @@ cmd_type parseUpdateParams(vstring& params) {
 	switch (stage) {
 		case 0:		throw SyntaxError(i18n::parseKey("exptsthgotnil", {i18n::parseKey("p_tablename").prints()}));
 		case 1:		throw SyntaxError(i18n::parseKey("exptkwgotnil", {keywords::set}));
-		case 2:		throw SyntaxError(i18n::parseKey("exptsthgotnil", {i18n::parseKey("p_termname").prints()}));
-		case 3:		throw SyntaxError(i18n::parseKey("exptsthgotnil", {"\"=\""}));
-		case 4:		throw SyntaxError(i18n::parseKey("exptsthgotnil", {i18n::parseKey("p_termvalue").prints()}));
-		case 5:		break;	// 不含where clause时从此处跳出
-		case 6:		// 含where clause时从此处跳出,需要把params内容推入temp再复制回去
-			if (params.size() == 0) throw SyntaxError(i18n::parseKey("exptsthgotnil", {i18n::parseKey("p_termname").prints()}));
-			res.push_back(keywords::where);
-			for (string s : params) res.push_back(s);
-			break;	
+		case 2:		throw SyntaxError(i18n::parseKey("incmpltparamlist"));
+		case 3:		break;
 	}
 	params = res;
 	eraseNewlBack(params);
@@ -270,7 +257,6 @@ cmd_type parseSelectStParams(vstring& params) {
 	
 	return type;
 }
-
 void parseInnerJoinParams(vstring& params) {
 	if (params.size() != 5) {
 		throw ArgumentCountError(5, params.size(), i18n::parseKey("upp"));
@@ -318,7 +304,6 @@ void parseInnerJoinParams(vstring& params) {
 		innerjoin_name, table_first, column_first, table_second, column_second
 	};
 }
-
 void parseSelectionMainParams(vstring& params) {
 	eraseNewlFront(params);
 	vstring res;
@@ -331,7 +316,7 @@ void parseSelectionMainParams(vstring& params) {
 			// 如果\next没有出现在读取\next的阶段（stage 1）则一定语法错误
 			if (stage != 1) throw SyntaxError(i18n::parseKey("exptsthgotnil", {i18n::parseKey("p_termname").prints()}));
 		}
-		if (equalIgnoringCase(now, keywords::from)) {
+		if (now == keywords::from) {
 			// 如果from没有出现在读取from的阶段（stage 1）则一定语法错误
 			if (stage != 1) {
 				throw SyntaxError(i18n::parseKey("unexptkw", {"from"}));
@@ -355,7 +340,7 @@ void parseSelectionMainParams(vstring& params) {
 				break;
 			case 2:							// 处理"from"
 				g_LnCounter.increment();
-				res.push_back(keywords::from);
+				res.push_back(keywords::from.str());
 				stage = 3;
 				break;
 			case 3:							// 读取表名
@@ -379,7 +364,6 @@ void parseSelectionMainParams(vstring& params) {
 	params = res;
 	eraseNewlBack(params);
 }
-
 void parseSelectionJoinParams(vstring& params) {
 	eraseNewlFront(params);
 	vstring res;
@@ -392,7 +376,7 @@ void parseSelectionJoinParams(vstring& params) {
 			// 如果\next没有出现在读取\next的阶段（stage 1）则一定语法错误
 			if (stage != 1) throw SyntaxError(i18n::parseKey("exptsthgotnil", {i18n::parseKey("p_termname").prints()}));
 		}
-		if (equalIgnoringCase(now, keywords::from)) {
+		if (now == keywords::from) {
 			// 如果from没有出现在读取from的阶段（stage 1）则一定语法错误
 			if (stage != 1) {
 				throw SyntaxError(i18n::parseKey("unexptkw", {"from"}));
@@ -428,7 +412,7 @@ void parseSelectionJoinParams(vstring& params) {
 				break;
 			case 2:							// 处理"from"
 				g_LnCounter.increment();
-				res.push_back(keywords::from);
+				res.push_back(keywords::from.str());
 				stage = 3;
 				break;
 			case 3:							// 读取表名
@@ -452,13 +436,12 @@ void parseSelectionJoinParams(vstring& params) {
 	params = res;
 	eraseNewlBack(params);
 }
-
 cmd_type parseInsertStParams(vstring& params) {
 	eraseNewlFront(params);
 	if (params.size() == 0) throw SyntaxError(i18n::parseKey("exptkwgotnil", {keywords::into}));
 	g_LnCounter.increment();
 	switch (getKeywordIndex(params.at(0))) {
-		case keyword_name::into:
+		case keyword_index::into:
 			params.erase(params.begin());		// 用于删去开头的"into"
 			parseInsertIntoParams(params);
 			return cmd_type::insertion;
@@ -471,8 +454,8 @@ void parseInsertIntoParams(vstring& params) {
 	vstring res;
 	int stage = 0;				// 解析阶段标记
 	string now;
-	bool f_halt = false;
-	while (params.size() != 0 and (!f_halt)) {
+	bool f_Halt = false;
+	while (params.size() != 0 and (!f_Halt)) {
 		eraseNewlFront(params);
 		now = params.at(0);
 		if (now == symbols::next) {
@@ -482,7 +465,7 @@ void parseInsertIntoParams(vstring& params) {
 		if (now == symbols::paramsend) {
 			stage = 5;
 			params.erase(params.begin());
-			f_halt = true;
+			f_Halt = true;
 			continue;
 		}
 		switch (stage) {
@@ -496,7 +479,7 @@ void parseInsertIntoParams(vstring& params) {
 				break;
 			case 1:							// 必须为values紧跟\paramsbegin
 				g_LnCounter.increment();
-				if (getKeywordIndex(now) != keyword_name::values) {
+				if (getKeywordIndex(now) != keyword_index::values) {
 					throw SyntaxError(i18n::parseKey("exptkwgotothers", {"values", now}));
 				}
 				params.erase(params.begin());
@@ -540,7 +523,7 @@ cmd_type parseDropStParams(vstring& params) {
 	if (params.size() == 0) throw SyntaxError(i18n::parseKey("exptkwgotnil", {keywords::table}));
 	g_LnCounter.increment();
 	switch (getKeywordIndex(params.at(0))) {
-		case keyword_name::table:
+		case keyword_index::table:
 			params.erase(params.begin());		// 用于删去开头的"table"
 			parseDropTableParams(params);
 			return cmd_type::droptab;
@@ -560,7 +543,7 @@ cmd_type parseUseStParams(vstring& params) {
 	if (params.size() == 0) throw SyntaxError(i18n::parseKey("exptkwgotnil", {keywords::database}));
 	g_LnCounter.increment();
 	switch (getKeywordIndex(params.at(0))) {
-		case keyword_name::database:
+		case keyword_index::database:
 			params.erase(params.begin());		// 用于删去开头的"database"
 			parseUseDatabaseParams(params);
 			return cmd_type::usedb;
@@ -577,14 +560,14 @@ void parseUseDatabaseParams(vstring& params) {
 }
 cmd_type parseCreateStParams(vstring& params) {
 	eraseNewlFront(params);
-	if (params.size() == 0) throw SyntaxError(i18n::parseKey("exptkwgotnil", {keywords::database+"\" or \""+keywords::table}));
+	if (params.size() == 0) throw SyntaxError(i18n::parseKey("exptkwgotnil", {keywords::database.str()+"\" or \""+keywords::table.str()}));
 	g_LnCounter.increment();
 	switch (getKeywordIndex(params.at(0))) {
-		case keyword_name::database:
+		case keyword_index::database:
 			params.erase(params.begin());		// 用于删去开头的"database"
 			parseCreateDatabaseParams(params);
 			return cmd_type::createdb;
-		case keyword_name::table:
+		case keyword_index::table:
 			params.erase(params.begin());		// 用于删去开头的"table"
 			parseCreateTableParams(params);
 			return cmd_type::createtab;
@@ -604,8 +587,8 @@ void parseCreateTableParams(vstring& params) {
 	vstring res;
 	int stage = 0;				// 解析阶段标记
 	string now;
-	bool f_halt = false;
-	while (params.size() != 0 and (!f_halt)) {
+	bool f_Halt = false;
+	while (params.size() != 0 and (!f_Halt)) {
 		eraseNewlFront(params);
 		if (params.size() == 0) break;
 		now = params.at(0);
@@ -615,7 +598,7 @@ void parseCreateTableParams(vstring& params) {
 		}
 		if (now == symbols::paramsend) {
 			stage = 6;
-			f_halt = true;
+			f_Halt = true;
 			continue;
 		}
 		switch (stage) {
@@ -644,9 +627,9 @@ void parseCreateTableParams(vstring& params) {
 				break;
 			case 3:							// 读取参数类型
 				g_LnCounter.increment();
-				if (equalIgnoringCase(now, keywords::integer))		res.push_back(keywords::integer);
-				else if (equalIgnoringCase(now, keywords::_float))	res.push_back(keywords::_float);
-				else if (equalIgnoringCase(now, keywords::text))		res.push_back(keywords::text);
+				if (now == keywords::integer)		res.push_back(keywords::integer.str());
+				else if (now == keywords::_float)	res.push_back(keywords::_float.str());
+				else if (now == keywords::text)		res.push_back(keywords::text.str());
 				else throw SyntaxError(i18n::parseKey("unacptvt", {now}));
 				stage = 4;
 				break;

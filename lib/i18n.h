@@ -10,6 +10,9 @@
 
 namespace minidb{
 
+string lowercase(const string);
+bool equalIgnoringCase(const string, const string);
+
 string g_LangCode = "en";
 
 enum class return_status {		
@@ -23,6 +26,17 @@ enum class return_status {
 	exbase = -3
 };
 
+class kwstring {
+	private:
+		string s;
+	public:
+		kwstring(const string& str = ""):s(str){}
+		kwstring(const char* str):s(str){}
+		operator string() { return s; }
+		bool operator== (const string str) const { return equalIgnoringCase(str, s); }
+		bool operator!= (const string str) const  { return !(*this == str); }
+		string str() const { return s; }
+};
 class i18nstring {
 	private:
 		string pattern;
@@ -49,22 +63,13 @@ class MiniDBExceptionBase {
 		virtual return_status status() const { return return_status::exbase; }
 };
 
-class WrongI18nKey extends public MiniDBExceptionBase {
-	private:
-		string id;
-	public:
-		WrongI18nKey(const string s = ""):id(s){}
-		virtual const string what() const override { return g_I18nStrDict.find("i18nwrongkey")->second.prints().c_str(); }
-		virtual return_status status() const override { return return_status::i18nwk; }
-};
-
 ostream& operator<< (ostream& os, const i18nstring s);
 bool isDigit(char);
 string itos(int);
 i18nstring author();
 namespace i18n{
 	void readKvpairs();
-	i18nstring parseKey(const string, vstring = {});
+	i18nstring parseKey(const string, vector<kwstring> = {});
 	void initialize_hardcoded();
 }
 
@@ -204,6 +209,7 @@ namespace i18n {
 				{"invdupc", "Invalid duplicate check in table \"%1\"."},
 				{"dupselwildc", "Duplicate selection. (Applying wildcard '*' and other selectors simultaneously.)"},
 				{"dupselterm", "Duplicate selection. (Found duplicate term \"%1\".)"},
+				{"outofbound", "Requested index [%1] is out of bound."},
 				{"exptsthgotnil", "Expected %1 but got nil."},
 				{"exptsthgotothers", "Expected %1 but got %2."},
 				{"exptkwgotnil", "Expected keyword \"%1\" but got nil."},
@@ -213,7 +219,7 @@ namespace i18n {
 				{"exptwheregotnil", "Expected keyword \"where\" but got nil. If you want to delete all data in the table, please use \"drop table\" statement."},
 				{"gcrmtmpf", "MiniDB> [GC][Warning] Failed to remove temporary file \"%1\"."},
 				{"gcrmtmps", "MiniDB> [GC] Deleted temporary file \"%1\"."},
-				{"unexpectederr", "MiniDB> [Unexpected Error] An unexpected error occurred."},
+				{"unexpectederr", "MiniDB> [Unexpected Error] An unexpected error occurred. e.what() says \"%1\". "},
 				{"argscerr", "MiniDB> [Argument Count Error] %1 (Too %2 argument(s): %3 arg(s) expected"},
 				{"argscerr_r", ", %1 received"},
 				{"argscerr_e", ")"},
@@ -239,8 +245,9 @@ namespace i18n {
 				{"l_where", "MiniDB> [Command] Conditions:"},
 				{"l_logicexpr", "MiniDB> [Command][Parameter] logic_expr | %1 %2 %3"},
 				{"l_update", "MiniDB> [Command] Updating data."},
-				{"l_assignment", "MiniDB> [Command][Parameter] let %1 be %2"},
+				{"l_assignment", "MiniDB> [Command][Parameter] assignment | %1"},
 				{"l_innerjoin", "MiniDB> [Command][Parameter] inner join logic_expr | %1 = %2"},
+				{"l_deletefrom", "MiniDB> [Command] Deleting data from table \"%1\"."},
 				{"p_tablename", "table name"},
 				{"p_termname", "term name"},
 				{"p_termvalue", "term value"},
@@ -256,11 +263,15 @@ namespace i18n {
 	}
 
 	// 这个函数实际上不进行parse，只是插入参数，但这样起名会让正文行文看起来好懂一些。
-	i18nstring parseKey(const string id, vstring params) {
+	i18nstring parseKey(const string id, vector<kwstring> params_kw) {
 		auto p = g_I18nStrDict.find(id);
-		if (p == g_I18nStrDict.end()) throw WrongI18nKey(id);
+		if (p == g_I18nStrDict.end()) return i18nstring(i18n::parseKey("i18nwrongkey", {id}));
 
 		i18nstring ins = p->second;
+		vstring params;
+		for (kwstring kws : params_kw) {
+			params.push_back(kws.str());
+		}
 		ins.setParams(params);
 		return ins;
 	}
@@ -311,7 +322,20 @@ i18nstring author() {
 	if (g_LangCode == "zh_cn") return string("陈必珅");
 	else return string("Bishen CHEN");
 }
-
+string lowercase(const string str) {
+	string res = "";
+	const string latin_lowercase = "abcdefghijklmnopqrstuvwxyz";
+	const string latin_uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	for (char ch : str) {
+		auto pos = latin_uppercase.find(ch);
+		if (pos == string::npos) res.push_back(ch);
+		else res.push_back(latin_lowercase.at(pos));
+	}
+	return res;
+}
+bool equalIgnoringCase(const string a, const string b) {
+	return lowercase(a) == lowercase(b);
+}
 
 }
 #endif

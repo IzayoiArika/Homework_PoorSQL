@@ -21,8 +21,97 @@ void runStSelection(const vstring, ostream&);
 void runStUpdate(const vstring);
 void runStDeleteFrom(const vstring);
 
-void runStDeleteFrom(const vstring params) {
+bool fitsWhereRequirement(const Row, const vstring);
 
+bool fitsWhereRequirement(const Row r, const vstring conditions) {
+	typedef ComparisonExpression cmpex;
+	typedef vector<cmpex> vcmpex;
+
+	Row row = r;
+
+	vstring ops = {};
+	vcmpex expressions (conditions.size()/4+1);
+
+	int index = 0;
+	for (string str : conditions) {
+		switch (index % 4) {
+			case 0:		// 左值
+				do {
+					Term term;
+					string type = judgeValueType(str);
+					if (type != keywords::variable) {
+						term.setType(type).setValue(str);
+					}
+					else {
+						term = row.findTerm(str);
+					}
+					expressions.at(index/4).setFirst(term);
+				} while (false);
+				break;
+			case 1:		// 比较运算符
+				expressions.at(index/4).setOp(str);
+				break;
+			case 2:		// 右值
+				do {
+					Term term;
+					string type = judgeValueType(str);
+					if (type != keywords::variable) {
+						term.setType(type).setValue(str);
+					}
+					else {
+						term = row.findTerm(str);
+					}
+					expressions.at(index/4).setSecond(term);
+				} while (false);
+				break;
+			case 3:		// 可能存在的逻辑运算符
+				ops.push_back(str);
+				break;
+		}
+		++index;
+	}
+
+	// 以上整理表达式，以下判断是否符合要求
+
+	// 不支持括号，不支持短路
+	bool result = expressions.at(0).result();
+	expressions.erase(expressions.begin());
+	for (int i = 0; i < ops.size(); ++i) {
+		string op = ops.at(i);
+		cmpex expr = expressions.at(i);
+		if (op == keywords::_and) {
+			result = result and expr.result();
+		}
+		else if (op == keywords::_or) {
+			result = result or expr.result();
+		}
+		else if (op == keywords::_xor) {
+			result = result xor expr.result();
+		}
+	}
+	return result;
+}
+void runStDeleteFrom(const vstring params) {
+	Database& database = getCurrentDatabase();
+	
+	string table_name = params.at(0);
+	Table& table = database.findTable(table_name);
+
+	vstring conditions = params;
+	conditions.erase(conditions.begin());
+
+	int index = 0;
+	vector<int> indices;
+	for (Row row : table.getRaw()) {
+		if (fitsWhereRequirement(row, conditions)) {
+			indices.push_back(index);
+		}
+		++index;
+	}
+	for (auto it = indices.rbegin(); it != indices.rend(); ++it) {
+		// 从后向前移除，因为移除前项index会导致后项index改变，进而导致越界
+		table.removeRow(*it);
+	}
 }
 void runStUpdate(const vstring params) {
 	Database& database = getCurrentDatabase();
@@ -30,25 +119,35 @@ void runStUpdate(const vstring params) {
 	string table_name = params.at(0);
 	Table& table = database.findTable(table_name);
 
-	vstring variable_names, values, conditions;
+	vstring assignments;
+	vstring conditions;
+	string asgn_str = "";
 	auto it = params.begin()+1;
-	for (int i = 1; it != params.end() and *it != keywords::where; ++it, ++i) {
-		if (i & 1) variable_names.push_back(*it);
-		else values.push_back(*it);
-	}
-	if (it != params.end()) {
-		for (; it != params.end(); ++it) {
-			conditions.push_back(*it);
+	for (; it != params.end(); ++it) {
+		if  (*it == keywords::set) continue; 
+		if (*it == symbols::next or *it == keywords::where) {
+			assignments.push_back(asgn_str);
+			asgn_str = "";
+			if (*it == keywords::where) {
+				++it;
+				break;
+			}
+			continue;
 		}
+		asgn_str = asgn_str + (*it) + " ";
+	}
+	for (; it != params.end(); ++it) {
+		conditions.push_back(*it);
 	}
 
-	for (Row& row : table.getRaw()) {
-		for (size_t i = 0; i < variable_names.size(); ++i) {
-			string str = variable_names.at(i);
-			Term& term = row.findTerm(str);
-			term.setValue(values.at(i));
-		}
-	}
+	// 以下是更新数据的部分
+	// for (Row& row : table.getRaw()) {
+	// 	for (size_t i = 0; i < variable_names.size(); ++i) {
+	// 		string str = variable_names.at(i);
+	// 		Term& term = row.findTerm(str);
+	// 		term.setValue(values.at(i));
+	// 	}
+	// }
 }
 void runStInnerJoin(const vstring params, ostream& os) {
 	Database& database = getCurrentDatabase();
@@ -214,6 +313,7 @@ void runStSelection(const vstring params, ostream& os) {
 			table_name = *it;
 			continue;
 		}
+		if (*it == keywords::where) continue;
 		if (f_isTargets) targets.push_back(*it);
 		else conditions.push_back(*it);
 	}
@@ -252,6 +352,7 @@ void runStSelection(const vstring params, ostream& os) {
 
 	for (Row row : table.getRaw()) {
 		Row row_temp;
+		if (!fitsWhereRequirement(row, conditions)) continue;
 		for (psterm p_term : row.getRaw()) {
 			string table_name = p_term.first;
 			Term term = p_term.second;

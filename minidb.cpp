@@ -16,6 +16,16 @@
  * ※ It is recommended to use 4 spaces as the width of a tab.
  */
 
+/**				中文版说明
+ * 你好！这是MiniDB主部分。虽然其实只是提供一个编译的位置，外加内嵌一个注释文档。
+ * 我保证：
+ * 		此Project提交的代码几乎全部由我自己独立完成，过程中无其他任何人参与。
+ * 		【句法Debug】时使用了ChatGPT，但只进行错误原因的问询（例如询问“类的多态何时生效”之类语法层面的问题），未使用其生成的代码。
+ * 		【逻辑构建、Debug】等其他步骤均未使用ChatGPT。
+ * 		Project手册中未明部分通过邮件向教授问询了含义，但无相关实现的交流。
+ * ※ 推荐阅读位于main函数下方的Project介绍。
+ * ※ 推荐使用4空格作为Tab宽度。
+ */
 
 #include "lib/entry.h"
 
@@ -26,24 +36,26 @@ int main(int argc, char** argv) {
 	return static_cast<int>(__Entry(argc, argv));
 }
 
+// 本文件仅提供一个编译入口。
+// This file is just for compilation.
 
 /**				文件结构 File Structure
- * --------------------------------------------------
- * 	main.cpp						-> lib/entry.h
- * 	lib/
- * 		entry.h
- * 		->	commands.h
- * 			->	loggers.h			-> exceptions.h
- * 			->	operations.h		-> objects.h
- * 			->	paramanalysis.h		-> stringop.h
- * --------------------------------------------------
- * 			->	objects.h
- * 				->	stringop.h
- * 					->	auxiliaries.h
- * 						->	exceptions.h
- * 							->	i18n.h
- * 								->	environments.h
- * --------------------------------------------------
+ * ---------------------------------------------------- *
+ * 	minidb.cpp						-> lib/entry.h		*
+ * 	lib/												*
+ * 		entry.h											*
+ * 		->	commands.h									*
+ * 			->	loggers.h			-> exceptions.h		*
+ * 			->	operations.h		-> objects.h		*
+ * 			->	paramanalysis.h		-> stringop.h		*
+ * ---------------------------------------------------- *
+ * 			->	objects.h								*
+ * 				->	stringop.h							*
+ * 					->	auxiliaries.h					*
+ * 						->	exceptions.h				*
+ * 							->	i18n.h					*
+ * 								->	environments.h		*
+ * ---------------------------------------------------- *
  */
 
 
@@ -71,14 +83,3 @@ int main(int argc, char** argv) {
  * 特别的，i18n的key起得很随意。	Specially, keys for i18n is quite randomly named.
  */
 
-
-/**				中文版说明
- * 你好！这是MiniDB主部分。虽然其实只是提供一个编译的位置，外加内嵌一个注释文档。
- * 我保证：
- * 		此Project提交的代码几乎全部由我自己独立完成，过程中无其他任何人参与。
- * 		【句法Debug】时使用了ChatGPT，但只进行错误原因的问询（例如询问“类的多态何时生效”之类语法层面的问题），未使用其生成的代码。
- * 		【逻辑构建、Debug】等其他步骤均未使用ChatGPT。
- * 		Project手册中未明部分通过邮件向教授问询了含义，但无相关实现的交流。
- * 在main函数下方有更详细的Project结构介绍。
- * ※ 推荐使用4空格作为Tab宽度。
- */

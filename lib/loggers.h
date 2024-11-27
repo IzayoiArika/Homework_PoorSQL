@@ -86,8 +86,8 @@ void logSelection(const vstring params) {
 			stage = 1;
 			continue;
 		}
-		if (str == keywords::from) {
-			stage = 1;
+		if (str == keywords::where) {
+			stage = 2;
 			continue;
 		}
 		switch (stage) {
@@ -97,10 +97,7 @@ void logSelection(const vstring params) {
 			case 1:				// 表名
 				clog << i18n::parseKey("l_intab", {str}) << endl;
 				break;
-			case 2:				// where
-				stage = 3;
-				continue;
-			case 3:				// where clause
+			case 2:				// where clause
 				where_clause.push_back(str);
 		}
 	}
@@ -108,27 +105,43 @@ void logSelection(const vstring params) {
 }
 void logUpdate(const vstring params) {
 	clog << i18n::parseKey("l_update") << endl;
-	clog << i18n::parseKey("l_intab", {params.at(0)}) << endl;
-	auto it = params.begin()+1;
-	for (; it != params.end() and *it != keywords::where; ++it) {
-		clog << i18n::parseKey("l_assignment", {*(it++), *it}) << endl;
-	}
-	if (it != params.end()) {
-		++it;
-		clog << i18n::parseKey("where") << endl;
-		while (true) {
-			clog << i18n::parseKey("l_logicexpr", {*(it++), *(it++), *(it++)});
-			if (it != params.end()) {
-				clog << ' ' << (*(it++)) << endl;
-				continue;
-			}
-			break;
+	int stage = 0;
+	vstring where_clause;
+	string asgn_str = "";
+	for (string str : params) {
+		if (str == keywords::set) {
+			stage = 1;
+			continue;
 		}
-		clog << endl;
+		if (str == symbols::next) {
+			clog << i18n::parseKey("l_assignment", {asgn_str}) << endl;
+			asgn_str = "";
+			continue;
+		}
+		if (str == keywords::where) {
+			clog << i18n::parseKey("l_assignment", {asgn_str}) << endl;
+			asgn_str = "";
+			stage = 2;
+			continue;
+		}
+		switch (stage) {
+			case 0:				// 表名
+				clog << i18n::parseKey("l_intab", {str}) << endl;
+				break;
+			case 1:				// 赋值表达式
+				asgn_str = asgn_str + str + " ";
+				break;
+			case 2:				// where clause
+				where_clause.push_back(str);
+		}
 	}
+	logWhere(where_clause);
 }
 void logDeleteFrom(const vstring params) {
-
+	clog << i18n::parseKey("l_deletefrom", {params.at(0)}) << endl;
+	vstring conditions = params;
+	conditions.erase(conditions.begin());
+	logWhere(conditions);
 }
 void logNullStm() {
 	clog << i18n::parseKey("w_nullstm") << endl;

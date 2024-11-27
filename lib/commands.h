@@ -68,25 +68,25 @@ cmd_type judgeCmdType(vstring& params) {
 	if (params.size() == 0) return cmd_type::null;
 	g_LnCounter.increment();
 	switch(getKeywordIndex(params.at(0))) {
-		case keyword_name::create:
+		case keyword_index::create:
 			params.erase(params.begin());		// 删去开头的"create"
 			return parseCreateStParams(params);
-		case keyword_name::use:
+		case keyword_index::use:
 			params.erase(params.begin());		// 删去开头的"delete"
 			return parseUseStParams(params);
-		case keyword_name::drop:
+		case keyword_index::drop:
 			params.erase(params.begin());		// 删去开头的"drop"
 			return parseDropStParams(params);
-		case keyword_name::insert:
+		case keyword_index::insert:
 			params.erase(params.begin());		// 删去开头的"insert"
 			return parseInsertStParams(params);
-		case keyword_name::select:
+		case keyword_index::select:
 			params.erase(params.begin());		// 删去开头的"select"
 			return parseSelectStParams(params);
-		case keyword_name::update:
+		case keyword_index::update:
 			params.erase(params.begin());		// 删去开头的"update"
 			return parseUpdateParams(params);
-		case keyword_name::_delete:
+		case keyword_index::_delete:
 			params.erase(params.begin());		// 删去开头的"delete"
 			return parseDeletionStParams(params);
 		default:
@@ -196,7 +196,7 @@ void storeLegacyDatabases() {
 				for (psterm p_term : r.getRaw()) {
 					if (f_isFirst) f_isFirst = false;
 					else ofile << " , ";
-					p_term.second.print(ofile, true);
+					p_term.second.print(ofile);
 				}
 				ofile << " );" << endl;
 			}
