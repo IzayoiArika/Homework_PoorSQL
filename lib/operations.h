@@ -71,14 +71,15 @@ bool fitsWhereRequirement(const Row r, const vstring conditions) {
 		++index;
 	}
 
-	// 以上整理表达式，以下判断是否符合要求
-
 	// 不支持括号，不支持短路
 	bool result = expressions.at(0).result();
+	expressions.at(0).printsln(clog);
 	expressions.erase(expressions.begin());
 	for (size_t i = 0; i < ops.size(); ++i) {
 		string op = ops.at(i);
 		cmpex expr = expressions.at(i);
+		clog << op << endl;
+		expr.printsln(clog);
 		if (op == keywords::_and) {
 			result = result and expr.result();
 		}

@@ -96,6 +96,7 @@ class ComparisonExpression extends public BinaryExpression {
 	public:
 		ComparisonExpression(const Term f = Term(), const Term str = Term(), const string op = symbols::equals):BinaryExpression(f,str,op){};
 		bool result() const;
+		void printsln(ostream&);
 };
 
 map<string, Database> g_Databases;
@@ -123,6 +124,12 @@ bool ComparisonExpression::result() const {
 	else if (op == symbols::equals)		res = (first == second);
 	else if (op == symbols::neq)		res = (first != second);
 	return res;
+}
+void ComparisonExpression::printsln(ostream& os) {
+	first.print(os);
+	os << ' ' << op << ' ';
+	second.print(os);
+	os << " = " << result() << endl;
 }
 
 Database& getCurrentDatabase() {
@@ -281,7 +288,7 @@ bool Term::operator== (const Term term) const {
 	}
 	else {
 		double difference = stringToDouble(value) - stringToDouble(term.value);
-		return (difference <= -g_DoubleEqCritDelta or difference >= g_DoubleEqCritDelta);
+		return (difference > -g_DoubleEqCritDelta and difference < g_DoubleEqCritDelta);
 	}
 }
 bool Term::operator> (const Term term) const {
@@ -298,16 +305,7 @@ bool Term::operator> (const Term term) const {
 	}
 }
 bool Term::operator!= (const Term term) const {
-	if (!isCompatibleWith(term)) {
-		throw InvalidArgument(i18n::parseKey("incmpttypes", {type, term.type}));
-	}
-	if (type == keywords::text) {
-		return value != term.value;
-	}
-	else {
-		double difference = stringToDouble(value) - stringToDouble(term.value);
-		return (difference > -g_DoubleEqCritDelta and difference < g_DoubleEqCritDelta);
-	}
+	return !((*this) == term);
 }
 Term Term::operator+ (const Term term) const {
 	if (!isCompatibleWith(term)) {
