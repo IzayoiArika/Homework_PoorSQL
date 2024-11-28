@@ -17,6 +17,7 @@ return_status __Entry(int argc, char**& argv) {
 	ifstream ifile;
 	ofstream ofile;
 	bool f_UnacceptableCmdl = false;
+	bool f_hasParsedCommand = false;
 	// argc = 3; argv[1] = "output/1.sql"; argv[2] = "output/2.txt";
 	// argc = 5; argv[3] = "-lang"; argv[4] = "en";
 	try {
@@ -33,13 +34,17 @@ return_status __Entry(int argc, char**& argv) {
 			}
 		#endif
 
-		i18n::readKvpairs();
+		i18n::readKvPairs();
 
-		if (argc != 3) f_UnacceptableCmdl = true;
+		if (argc != 3) {
+			f_UnacceptableCmdl = true;
+		}
 
 		clog << endl << i18n::parseKey("welcome", {i18n::parseKey("authn").str()}) << endl;
 
-		if (f_UnacceptableCmdl) throw ArgumentCountError(2,argc-1,i18n::parseKey("unacptcmdl"));
+		if (f_UnacceptableCmdl) {
+			throw ArgumentCountError(2,argc-1,i18n::parseKey("unacptcmdl"));
+		}
 
 		#ifdef __STORE_LEGACY__
 			readLegacyDatabases();
@@ -56,6 +61,7 @@ return_status __Entry(int argc, char**& argv) {
 			throw FailedFileOperation(i18n::parseKey("openofilef",{argv[2]}));
 		}
 
+		f_hasParsedCommand = true;
 		parseCommand(ifile, ofile);
 
 		clog << endl << i18n::parseKey("atc") << endl;
@@ -70,23 +76,28 @@ return_status __Entry(int argc, char**& argv) {
 	ifile.close();
 	ofile.close();
 
-	#ifdef __DEBUG_ENVIRONMENT__
-		clog << endl << i18n::parseKey("h_dataexh") << endl;
-		for (pair<string, Database> p_database : g_Databases) {
-			clog << endl << "Database \"" << p_database.first << "\":" << endl;
-			for (pstable p_table : p_database.second.getRaw()) {
-				clog << endl << "Table \"" << p_table.first << "\" details:" << endl;
-				p_table.second.print(clog);
+	if (f_hasParsedCommand) {
+
+		#ifdef __DEBUG_ENVIRONMENT__
+			clog << endl << i18n::parseKey("h_dataexh") << endl;
+			for (pair<string, Database> p_database : g_Databases) {
+				clog << endl << "Database \"" << p_database.first << "\":" << endl;
+				for (pstable p_table : p_database.second.getRaw()) {
+					clog << endl << "Table \"" << p_table.first << "\" details:" << endl;
+					p_table.second.print(clog);
+				}
 			}
-		}
-		clog << endl << i18n::parseKey("h_dataexhend") << endl;
-	#endif
+			clog << endl << i18n::parseKey("h_dataexhend") << endl;
+		#endif
 
-	#ifdef __STORE_LEGACY__
-		storeLegacyDatabases();
-	#endif
+		#ifdef __STORE_LEGACY__
+			storeLegacyDatabases();
+		#endif
 
-	deleteTempFiles();
+		deleteTempFiles();
+
+	}
+
 	clog << endl << i18n::parseKey("exitstatus", {itos(static_cast<int>(status))}) << endl;
 
 	return status;

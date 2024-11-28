@@ -10,7 +10,7 @@
 
 namespace minidb{
 
-string lowercase(const string);
+string toLowercase(const string);
 bool equalIgnoringCase(const string, const string);
 
 string g_LangCode = "en";
@@ -68,7 +68,7 @@ bool isDigit(char);
 string itos(int);
 i18nstring author();
 namespace i18n{
-	void readKvpairs();
+	void readKvPairs();
 	i18nstring parseKey(const string, vector<kwstring> = {});
 	void initialize_hardcoded();
 }
@@ -123,7 +123,7 @@ bool isDigit(char ch) {
 namespace i18n {
 
 	// 读取国际化字符串
-	void readKvpairs() {
+	void readKvPairs() {
 		#ifdef __ENABLE_I18N__
 			initialize_hardcoded();
 			ifstream langf;
@@ -324,7 +324,7 @@ i18nstring author() {
 	if (g_LangCode == "zh_cn") return string("陈必珅");
 	else return string("Bishen CHEN");
 }
-string lowercase(const string str) {
+string toLowercase(const string str) {
 	string res = "";
 	const string latin_lowercase = "abcdefghijklmnopqrstuvwxyz";
 	const string latin_uppercase = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
@@ -336,7 +336,7 @@ string lowercase(const string str) {
 	return res;
 }
 bool equalIgnoringCase(const string a, const string b) {
-	return lowercase(a) == lowercase(b);
+	return toLowercase(a) == toLowercase(b);
 }
 
 }
