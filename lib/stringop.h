@@ -13,7 +13,8 @@ template <typename T> bool doesContain(const T, const vector<T>);		// 在给定v
 bool doesContain(const char, const string);							// 在给定string中查找char，找到返回true，否则返回false。
 bool isReservedKeyword(const string);					// 判断给定字符串是否为关键字。
 bool doesFitNameRequirement(const string);				// 判断给定字符串是否符合变量名命名原则（不考虑与关键字冲突的情况）。
-bool isValidVarName(const string); 					// 判断给定字符串是否符合变量名命名原则。
+bool isValidVarName(const string); 						// 判断给定字符串是否符合变量名命名原则。
+bool isValidMemberVarName(const string);				// 判断给定字符串是否符合a.b的形式，且a和b均变量名命名原则。
 bool isToken(const string);								// 判断给定字符串是否应该被计入token。
 bool isValidCmpOp(const string);						// 判断给定字符串是否为合法的比较运算符。
 
@@ -211,7 +212,18 @@ bool doesFitNameRequirement(const string str) {
 	return true;
 }
 bool isValidVarName(const string r) {
+	if (r.size() == 0) return false;
 	return (!isReservedKeyword(r) and doesFitNameRequirement(r));
+}
+bool isValidMemberVarName(const string r) {
+	if (r.size() == 0) return false;
+	auto pos = r.find('.');
+	if (pos == string::npos) {
+		return isValidVarName(r);
+	}
+	string parent = r.substr(0, pos);
+	string member = r.substr(pos+1);
+	return (isValidVarName(parent) and isValidVarName(member));
 }
 istream& getsUntil(istream& is, string& str, const string delim) {
 	const int dsize = delim.size();

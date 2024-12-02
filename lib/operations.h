@@ -9,7 +9,9 @@
 
 namespace minidb {
 
-bool gf_isFirst = true;
+#ifndef __PRINT_FINAL_SEPARATOR__
+	bool gf_isFirst = true;
+#endif
 
 void runStCreateDatabase(const vstring);
 void runStUseDatabase(const vstring);
@@ -73,13 +75,11 @@ bool fitsWhereRequirement(const Row r, const vstring conditions) {
 
 	// 不支持括号，不支持短路
 	bool result = expressions.at(0).result();
-	expressions.at(0).printsln(clog);
 	expressions.erase(expressions.begin());
 	for (size_t i = 0; i < ops.size(); ++i) {
 		string op = ops.at(i);
 		cmpex expr = expressions.at(i);
 		clog << op << endl;
-		expr.printsln(clog);
 		if (op == keywords::_and) {
 			result = result and expr.result();
 		}
@@ -155,6 +155,7 @@ void runStInnerJoin(const vstring params, ostream& os) {
 	vstring columns;
 	string tabn_first, tabn_second;
 	vstring join_terms;
+	vstring conditions;
 	
 	int stage = 0;
 	for (string str : params) {
@@ -164,6 +165,10 @@ void runStInnerJoin(const vstring params, ostream& os) {
 		}
 		if (str == "inner join") {
 			stage = 2;
+			continue;
+		}
+		if (str == "where") {
+			stage = 4;
 			continue;
 		}
 		switch(stage) {
@@ -179,6 +184,9 @@ void runStInnerJoin(const vstring params, ostream& os) {
 				break;
 			case 3:
 				join_terms.push_back(str);
+				break;
+			case 4:
+				conditions.push_back(str);
 				break;
 		}
 	}
@@ -270,7 +278,7 @@ void runStInnerJoin(const vstring params, ostream& os) {
 			// 检查是否确实存在此项，存在则不会抛异常
 			Term temp = database.findTable(table_name).getTitle().findTerm(column_name);
 			// 插入一个项到标题行。注意：本项目认为结果表中存在同名列也属于错误。
-			title.insertTerm(column_name, temp);
+			title.insertTerm(table_name + "." + column_name, temp);
 		}
 		
 	}
@@ -282,20 +290,30 @@ void runStInnerJoin(const vstring params, ostream& os) {
 
 	for (Row row_first : table_first.getRaw()) {
 		for (Row row_second : table_second.getRaw()) {
+			Row union_row = mergeRowUnion(row_first, row_second, jtabn_first, jtabn_second);
+			if (stage == 4) {
+				if(!fitsWhereRequirement(union_row, conditions)) continue;
+			}
 			if (row_first.findTerm(jcoln_first) == row_second.findTerm(jcoln_second)) {
-				Row temp = title;
-				temp.mergeRowIntersect(row_first).mergeRowIntersect(row_second);
-				result.insertRow(temp);
+				Row res_row = title;
+				res_row.mergeRowIntersect(row_first, jtabn_first).mergeRowIntersect(row_second, jtabn_second);
+				result.insertRow(res_row);
 			}
 		}
 	}
 
+	result.print(os);
+	
+	#ifndef __PRINT_FINAL_SEPARATOR__	
 	// 输出
 	// 判别是否为第一次输出
-	if (gf_isFirst) gf_isFirst = false;
-	else os << "---" << endl;
-
-	result.print(os);
+		if (gf_isFirst) gf_isFirst = false;
+		else {
+	#endif
+			os << "---" << endl;
+	#ifndef __PRINT_FINAL_SEPARATOR__
+		}
+	#endif
 }
 void runStSelection(const vstring params, ostream& os) {
 	Database& database = getCurrentDatabase();
@@ -327,7 +345,7 @@ void runStSelection(const vstring params, ostream& os) {
 		else { 
 		// 否则将通配符替换为所有项目
 			vstring temp;
-			msterm term = table.getTitle().getRaw();
+			vector<psterm> term = table.getTitle().getRaw();
 			for (psterm p_term : term) {
 				temp.push_back(p_term.first);
 			}
@@ -361,11 +379,18 @@ void runStSelection(const vstring params, ostream& os) {
 		result.insertRow(row_temp);
 	}
 
-	// 判别是否为第一次输出
-	if (gf_isFirst) gf_isFirst = false;
-	else os << "---" << endl;
-
 	result.print(os);
+	
+	#ifndef __PRINT_FINAL_SEPARATOR__	
+	// 输出
+	// 判别是否为第一次输出
+		if (gf_isFirst) gf_isFirst = false;
+		else {
+	#endif
+			os << "---" << endl;
+	#ifndef __PRINT_FINAL_SEPARATOR__
+		}
+	#endif
 }
 void runStInsertion(const vstring params) {
 	Database& database = getCurrentDatabase();
@@ -376,7 +401,7 @@ void runStInsertion(const vstring params) {
 		throw ArgumentCountError(row.size(), params.size(), i18n::parseKey("upp"));
 	}
 	int i = 1;
-	msterm terms = row.getRaw();
+	vector<psterm> terms = row.getRaw();
 	for (auto it = terms.begin(); it != terms.end(); ++it) {
 		it->second.setValue(params.at(i));
 		++i;

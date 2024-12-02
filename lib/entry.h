@@ -18,8 +18,11 @@ return_status __Entry(int argc, char**& argv) {
 	ofstream ofile;
 	bool f_UnacceptableCmdl = false;
 	bool f_hasParsedCommand = false;
+
+	// 这两行用于快速调试
 	// argc = 3; argv[1] = "output/1.sql"; argv[2] = "output/2.txt";
 	// argc = 5; argv[3] = "-lang"; argv[4] = "en";
+	
 	try {
 
 		#ifdef __ENABLE_I18N__

@@ -17,35 +17,35 @@ enum cmd_type {				// SQL语句的种类
 };
 // 这里单独把inner join拎出来特判
 
-void eraseNewlFront(vstring&);							// 去除参数列表前方的新行
-void eraseNewlBack(vstring&);							// 去除参数列表后方的新行
-int cntAvailableArgs(const vstring);					// 检查参数列表中有多少有效的参数（也即不计"\newline"的总数）
+void eraseNewlFront(vstring&);						// 去除参数列表前方的新行
+void eraseNewlBack(vstring&);						// 去除参数列表后方的新行
+int cntAvailableArgs(const vstring);				// 检查参数列表中有多少有效的参数（也即不计"\newline"的总数）
 
-cmd_type parseCreateStParams(vstring&);			// 解析并检查	create	开头语句的参数
-cmd_type parseUseStParams(vstring&);			// 解析并检查	use		开头语句的参数
-cmd_type parseDropStParams(vstring&);			// 解析并检查	drop	开头语句的参数
-cmd_type parseInsertStParams(vstring&);			// 解析并检查	insert	开头语句的参数
-cmd_type ParssDeletionStParams(vstring&);		// 解析并检查	delete	开头语句的参数
-cmd_type parseSelectStParams(vstring&);			// 解析并检查	select	开头语句的参数
+cmd_type parseCreateStParams(vstring&);				// 解析并检查	create	开头语句的参数
+cmd_type parseUseStParams(vstring&);				// 解析并检查	use		开头语句的参数
+cmd_type parseDropStParams(vstring&);				// 解析并检查	drop	开头语句的参数
+cmd_type parseInsertStParams(vstring&);				// 解析并检查	insert	开头语句的参数
+cmd_type ParssDeletionStParams(vstring&);			// 解析并检查	delete	开头语句的参数
+cmd_type parseSelectStParams(vstring&);				// 解析并检查	select	开头语句的参数
 
-void parseCreateDatabaseParams(vstring&);		// 解析并检查	create database			语句的参数
-void parseCreateTableParams(vstring&);			// 解析并检查	create table			语句的参数
-void parseUseDatabaseParams(vstring&);			// 解析并检查	use database			语句的参数
-void parseDropTableParams(vstring&);			// 解析并检查	drop table				语句的参数
-void parseInsertIntoParams(vstring&);			// 解析并检查	insert into				语句的参数
-void parseDeleteFromParams(vstring&);			// 解析并检查	delete from				语句的参数
-cmd_type parseUpdateParams(vstring&);			// 解析并检查	update					语句的参数
+void parseCreateDatabaseParams(vstring&);			// 解析并检查	create database			语句的参数
+void parseCreateTableParams(vstring&);				// 解析并检查	create table			语句的参数
+void parseUseDatabaseParams(vstring&);				// 解析并检查	use database			语句的参数
+void parseDropTableParams(vstring&);				// 解析并检查	drop table				语句的参数
+void parseInsertIntoParams(vstring&);				// 解析并检查	insert into				语句的参数
+void parseDeleteFromParams(vstring&);				// 解析并检查	delete from				语句的参数
+cmd_type parseUpdateParams(vstring&);				// 解析并检查	update					语句的参数
 
-void parseSelectionMainParams(vstring&);		// 解析并检查	select ... 	主句的参数
-void parseSelectionJoinParams(vstring&);		// 呃……这很难解释，总之有用
+void parseSelectionMainParams(vstring&);			// 解析并检查	select ... 	主句的参数
+void parseSelectionJoinParams(vstring&);			// 呃……这很难解释，总之有用
 
-void parseInnerJoinParams(vstring&);			// 解析并检查	inner join	从句的参数
-void parseWhereClauseParams(vstring&);			// 解析并检查	where		从句的参数
-
-
+void parseInnerJoinParams(vstring&);				// 解析并检查	inner join	从句的参数
+void parseWhereClauseParams(vstring&, const bool);	// 解析并检查	where		从句的参数
 
 
-void parseWhereClauseParams(vstring& params) {
+
+
+void parseWhereClauseParams(vstring& params, const bool f_isInnerJoin = false) {
 	vstring res;
 	eraseNewlFront(params);
 	int size = cntAvailableArgs(params);
@@ -60,9 +60,18 @@ void parseWhereClauseParams(vstring& params) {
 		string current_str = params.at(0);
 		switch (i % 4) {
 			case 0:
-				if (!isValidVarName(current_str)) {
-					throw InvalidArgument(i18n::parseKey("unacptvarn", {current_str}));
-				}
+				do {
+					bool f_temp;
+					if (f_isInnerJoin) {
+						f_temp = isValidMemberVarName(current_str);
+					}
+					else {
+						f_temp = isValidVarName(current_str);
+					}
+					if (!f_temp) {
+						throw InvalidArgument(i18n::parseKey("unacptvarn", {current_str}));
+					}
+				} while (false);
 				break;
 			case 1:
 				if (!isValidCmpOp(current_str)) {
@@ -88,8 +97,9 @@ void parseDeleteFromParams(vstring& params) {
 	vstring res;
 	int stage = 0;				// 解析阶段标记
 	string current_str;
-	while (params.size() != 0) {
+	while (true) {
 		eraseNewlFront(params);
+		if (params.size() == 0) break;
 		current_str = params.at(0);
 		if (stage == 2) {
 			parseWhereClauseParams(params);
@@ -143,8 +153,9 @@ cmd_type parseUpdateParams(vstring& params) {
 	vstring res;
 	int stage = 0;
 	string now;
-	while (params.size() != 0) {
+	while (true) {
 		eraseNewlFront(params);
+		if (params.size() == 0) break;
 		now = params.at(0);
 		if (now == keywords::set) {
 			// 如果set没有出现在读取from的阶段（stage 1）则一定语法错误
@@ -208,6 +219,10 @@ cmd_type parseSelectStParams(vstring& params) {
 	bool f_isAppendClause = false;
 	bool f_isInnerJoin = false;
 	for (string str : params) {
+		if (str == symbols::newl) {
+			g_LnCounter.newl();
+			continue;
+		}
 		if (str == keywords::where) {
 			f_isAppendClause = true;
 			type_str = "where";
@@ -223,7 +238,6 @@ cmd_type parseSelectStParams(vstring& params) {
 				throw SyntaxError(i18n::parseKey("exptkwgotothers", {keywords::join, str}));
 			}
 			f_isAppendClause = true;
-			type_str = "inner join";
 			type = cmd_type::innerjoin;
 			continue;
 		}
@@ -236,6 +250,7 @@ cmd_type parseSelectStParams(vstring& params) {
 		}
 	}
 	if (f_isInnerJoin) {
+		type_str = "inner join";
 		parseSelectionJoinParams(main_clause);
 		parseInnerJoinParams(append_clause);
 	}
@@ -254,12 +269,23 @@ cmd_type parseSelectStParams(vstring& params) {
 			params.push_back(str);
 		}
 	}
-	
+	for (string str : params) {
+		clog << str << ' ';
+	}
 	return type;
 }
 void parseInnerJoinParams(vstring& params) {
-	if (params.size() != 5) {
-		throw ArgumentCountError(5, params.size(), i18n::parseKey("upp"));
+	int size = cntAvailableArgs(params);
+	if (size > 5) {
+		vstring temp;
+		for (auto it = params.begin()+5; it != params.end(); ++it) {
+			temp.push_back(*it);
+			clog << *it << ' ';
+		}
+		parseWhereClauseParams(temp, true);
+	}
+	else if (size < 5) {
+		throw ArgumentCountError(5, size, i18n::parseKey("upp"));
 	}
 	if (params.at(1) != keywords::on) {
 		throw SyntaxError(i18n::parseKey("exptkwgotothers", {keywords::on, params.at(1)}));
@@ -300,17 +326,26 @@ void parseInnerJoinParams(vstring& params) {
 		throw InvalidArgument(i18n::parseKey("unacptvarn", {column_second}));
 	}
 
-	params = {
+	vstring temp = {
 		innerjoin_name, table_first, column_first, table_second, column_second
 	};
+	if (size > 5) {
+		temp.push_back(keywords::where.str());
+		for (auto it = params.begin()+5; it != params.end(); ++it) {
+			temp.push_back(*it);
+		}
+	}
+
+	params = temp;
 }
 void parseSelectionMainParams(vstring& params) {
 	eraseNewlFront(params);
 	vstring res;
 	int stage = 0;
 	string now;
-	while (params.size() != 0) {
+	while (true) {
 		eraseNewlFront(params);
+		if (params.size() == 0) break;
 		now = params.at(0);
 		if (now == symbols::next) {
 			// 如果\next没有出现在读取\next的阶段（stage 1）则一定语法错误
@@ -425,6 +460,7 @@ void parseSelectionJoinParams(vstring& params) {
 				break;
 		}
 		params.erase(params.begin());
+		eraseNewlBack(params);
 	}
 	switch (stage) {
 		case 0:		throw SyntaxError(i18n::parseKey("exptsthgotnil", {i18n::parseKey("p_termname").str()}));
@@ -455,8 +491,9 @@ void parseInsertIntoParams(vstring& params) {
 	int stage = 0;				// 解析阶段标记
 	string now;
 	bool f_Halt = false;
-	while (params.size() != 0 and (!f_Halt)) {
+	while (true) {
 		eraseNewlFront(params);
+		if (params.size() == 0 or f_Halt) break;
 		now = params.at(0);
 		if (now == symbols::next) {
 			// 如果\next没有出现在读取\next的阶段（stage 3）则一定语法错误
@@ -588,8 +625,9 @@ void parseCreateTableParams(vstring& params) {
 	int stage = 0;				// 解析阶段标记
 	string now;
 	bool f_Halt = false;
-	while (params.size() != 0 and (!f_Halt)) {
+	while (true) {
 		eraseNewlFront(params);
+		if (params.size() == 0 or f_Halt) break;
 		if (params.size() == 0) break;
 		now = params.at(0);
 		if (now == symbols::next) {

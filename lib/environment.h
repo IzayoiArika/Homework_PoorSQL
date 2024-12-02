@@ -79,10 +79,15 @@ const double g_DoubleEqCritDelta = 1e-6;
  * 3. __STORE_LEGACY__
  * 		控制程序是否生成历史数据记录。发布时默认开启。
  * 		调试的时候并不总是希望它保存历史记录，不然弄起来很费劲，所以开了这个宏来方便调试。
+ * 
+ * 4. __PRINT_FINAL_SEPARATOR__
+ * 		控制程序在最后一个select语句后是否要加分隔用的横线。
+ * 		默认不加，因为加了实在是看着很蠢。但是输出样例要求要加，那我只好顺从他。
  */
 
 #define __DEBUG_ENVIRONMENT__
 // #define __ENABLE_I18N__
 #define __STORE_LEGACY__
+#define __PRINT_FINAL_SEPARATOR__
 
 #endif

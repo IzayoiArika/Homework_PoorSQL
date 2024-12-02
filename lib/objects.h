@@ -33,24 +33,25 @@ class Term {
 		Term& setType(const string);
 		void print(ostream&) const;
 };
-typedef map<string, Term> msterm;
 typedef pair<string, Term> psterm;
 class Row {
 	private:
-		msterm terms;
+		// 由于map底层采用红黑树实现，其不可避免地会对key进行排序，但这会打乱Row内Term的顺序，因此只好退而求其次选择vector
+		vector<psterm> terms;
 	public:
 		Row(){}
 		bool doesExist(const string) const;
+		int findIdIndex(const string) const;
 		Term& findTerm(const string);
 		void insertTerm(const string, const Term);
 		void insertTerm(const psterm);
 		void print(ostream&) const;
 		void printTitle(ostream&) const;
 		size_t size() const;
-		msterm& getRaw();
-		void setTerms(const msterm);
+		vector<psterm>& getRaw();
+		void setTerms(const vector<psterm>);
 		void setTerm(const string, const Term);
-		Row& mergeRowIntersect(const Row);
+		Row& mergeRowIntersect(const Row, const string);
 };
 class Table {
 	private:
@@ -96,7 +97,6 @@ class ComparisonExpression extends public BinaryExpression {
 	public:
 		ComparisonExpression(const Term f = Term(), const Term str = Term(), const string op = symbols::equals):BinaryExpression(f,str,op){};
 		bool result() const;
-		void printsln(ostream&);
 };
 
 map<string, Database> g_Databases;
@@ -109,6 +109,7 @@ void createDatabase(const string);
 
 string parseValueType(const string);
 
+const Row mergeRowUnion(Row, Row, const string, const string);
 
 // 函数体定义全部写在下方
 
@@ -124,12 +125,6 @@ bool ComparisonExpression::result() const {
 	else if (op == symbols::equals)		res = (first == second);
 	else if (op == symbols::neq)		res = (first != second);
 	return res;
-}
-void ComparisonExpression::printsln(ostream& os) {
-	first.print(os);
-	os << ' ' << op << ' ';
-	second.print(os);
-	os << " = " << result() << endl;
 }
 
 Database& getCurrentDatabase() {
@@ -201,20 +196,31 @@ Row Table::getTitle() const {
 }
 
 bool Row::doesExist(const string id) const {
-	if (terms.find(id) != terms.end()) return true;
+	for (psterm p_term : terms) {
+		if (p_term.first == id) return true;
+	}
 	return false;
 }
+int Row::findIdIndex(const string id) const {
+	int i = -1;
+	for (psterm p_term : terms) {
+		++i;
+		if (p_term.first == id) break;
+	}
+	return i;
+}
 Term& Row::findTerm(const string id) {
-	auto it = terms.find(id);
-	if (it != terms.end()) return it->second;
+	int index = findIdIndex(id);
+	if (index != -1) return terms.at(index).second;
 	throw InvalidArgument(i18n::parseKey("nosuchterm", {id}));
 }
 void Row::insertTerm(const string id, const Term term) {
-	insertTerm(psterm(id, term));
+	if (doesExist(id)) throw InvalidArgument(i18n::parseKey("duplicateterm", {id}));
+	terms.push_back(psterm(id, term));
 }
 void Row::insertTerm(const psterm p_term) {
 	if (doesExist(p_term.first)) throw InvalidArgument(i18n::parseKey("duplicateterm", {p_term.first}));
-	terms.insert(p_term);
+	terms.push_back(p_term);
 }
 void Row::print(ostream& os) const {
 	bool f_isFirst = true;
@@ -235,14 +241,14 @@ void Row::printTitle(ostream& os) const {
 size_t Row::size() const {
 	return terms.size();
 }
-msterm& Row::getRaw() {
+vector<psterm>& Row::getRaw() {
 	return terms;
 }
-void Row::setTerms(const msterm p_term) {
+void Row::setTerms(const vector<psterm> p_term) {
 	terms = p_term;
 }
 void Row::setTerm(const string id, const Term term) {
-	Term& t = terms.at(id);
+	Term& t = findTerm(id);
 	if (t.isCompatibleWith(term)) {
 		t.setValue(term.getValue());
 	}
@@ -250,20 +256,30 @@ void Row::setTerm(const string id, const Term term) {
 		throw InvalidArgument(i18n::parseKey("incmpttypes", {t.getType(), term.getType()}));
 	}
 }
-Row& Row::mergeRowIntersect(const Row row) {
+Row& Row::mergeRowIntersect(const Row row, const string tabn) {
 	vstring row_ids;
 	for (psterm p_term : terms) {
 		row_ids.push_back(p_term.first);
 	}
-	msterm terms_raw = row.terms;
+	vector<psterm> terms_raw = row.terms;
 	for (psterm p_term : terms_raw) {
-		string id = p_term.first;
+		string id = tabn + "." + p_term.first;
 		if (doesContain(id, row_ids)) {
 			Term term = p_term.second;
 			this->setTerm(id, p_term.second);
 		}
 	}
 	return *this;
+}
+const Row mergeRowUnion(Row row1, Row row2, const string tabn1, const string tabn2) {
+	Row res;
+	for (psterm& p_term : row1.getRaw()) {
+		res.insertTerm(tabn1 + "." + p_term.first, p_term.second);
+	}
+	for (psterm& p_term : row2.getRaw()) {
+		res.insertTerm(tabn2 + "." + p_term.first, p_term.second);
+	}
+	return res;
 }
 
 bool Term::operator< (const Term term) const {
@@ -418,7 +434,10 @@ Term& Term::setType(const string term) {
 void Term::print(ostream& os) const {
 	if (type == keywords::integer)	os << stringToInt(value);
 	else if (type == keywords::_float)	os << std::fixed << std::setprecision(2) << stringToDouble(value);
-	else if (type == keywords::text) os << '\'' << value.substr(1,value.size()-2) << '\'';
+	else if (type == keywords::text) {
+		if (value.size() <= 2) os << "''";
+		else os << '\'' << value.substr(1,value.size()-2) << '\'';
+	}
 	else os << value;
 }
 
